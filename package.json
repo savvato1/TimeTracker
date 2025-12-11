@@ -1,0 +1,15 @@
+{
+  "name": "ecm_timetracker",
+  "displayName": "ECM TimeTracker",
+  "publisher": "yourname",
+  "version": "0.0.1",
+  "engines": { "vscode": "^1.60.0" },
+  "main": "extension.js",
+  "activationEvents": ["*"],
+  "contributes": {
+    "commands": [
+      { "command": "ecm_timetracker.showStats", "title": "ECM TimeTracker: Show Statistics" },
+      { "command": "ecm_timetracker.finishTask", "title": "ECM TimeTracker: Finish Task" }
+    ]
+  }
+}
