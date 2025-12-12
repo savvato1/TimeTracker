@@ -30,7 +30,9 @@ class TimeStore {
             touchedFiles: [], // Array of strings to store unique file paths
             aiLogs: [], // Manual logs/AI context
             autoLogs: [], // Automatic actions
-            paused: false
+            paused: false,
+            userSeconds: 0,
+            aiSeconds: 0
         };
     }
 
@@ -43,12 +45,23 @@ class TimeStore {
 
     addActiveTime(seconds) {
         if (this.current.paused) return; // Don't add time if paused
+
         this.current.activeSeconds += seconds;
+        // Legacy support if needed, or just stop using userSeconds/aiSeconds logic
+        // We'll just track total activeSeconds as the source of truth now.
+
         this.saveCurrent();
     }
 
     togglePause() {
         this.current.paused = !this.current.paused;
+
+        // If we are starting (unpausing) a fresh session (0 time), reset the start timestamp
+        // so the session time matches when work actually began.
+        if (!this.current.paused && this.current.activeSeconds === 0) {
+            this.current.start = Date.now();
+        }
+
         this.saveCurrent();
         return this.current.paused;
     }
@@ -118,19 +131,21 @@ class TimeStore {
         this.context.globalState.update(this.currentKey, this.current);
     }
 
-    finishTask(taskTitle = '', taskDescription = '') {
+    finishTask(taskTitle = '', taskDescription = '', projectName = null) {
         const history = this.getHistory();
         const entry = {
             ...this.current,
             end: Date.now(),
             title: taskTitle || 'Untitled Task',
-            description: taskDescription
+            description: taskDescription,
+            project: projectName || this.current.project // Allow override
         };
         history.push(entry);
         this.context.globalState.update(this.historyKey, history);
 
         // Reset current
         this.current = this._createNewSession();
+        this.current.paused = true; // Start new session in PAUSED state
         this.saveCurrent();
         return entry;
     }
@@ -171,7 +186,11 @@ class TimeStore {
 
         let allSessions = [...history];
         if (currentIncluded) {
-            allSessions.push({ ...this.current, end: Date.now() });
+            // Only include current session if it has active time or activity
+            // This prevents empty "ghost" tasks from appearing immediately after finishing a task
+            if (this.current.activeSeconds > 0) {
+                allSessions.push({ ...this.current, end: Date.now() });
+            }
         }
 
         // Filter by date

@@ -1,9 +1,10 @@
 const vscode = require('vscode');
 
 class WebviewManager {
-    constructor(context, timeStore) {
+    constructor(context, timeStore, locManager) {
         this.context = context;
         this.store = timeStore;
+        this.loc = locManager;
         this.statsPanel = null;
         this.finishPanel = null;
     }
@@ -32,13 +33,20 @@ class WebviewManager {
             this.statsPanel = null;
         });
 
-        this.statsPanel.webview.onDidReceiveMessage(msg => {
+        this.statsPanel.webview.onDidReceiveMessage(async msg => {
             if (msg.command === 'finish_request') {
                 this.showFinishTask();
             } else if (msg.command === 'filter_date') {
                 // Update view with new date
                 const stats = this.store.getStats(msg.date);
                 this.statsPanel.webview.html = this._getStatsHtml(stats);
+            } else if (msg.command === 'delete_task') {
+                const choice = await vscode.window.showWarningMessage(this.loc.t('deleteTaskWarning'), this.loc.t('yes'), this.loc.t('no'));
+                if (choice === this.loc.t('yes')) {
+                    this.store.deleteTask(msg.id);
+                    const stats = this.store.getStats(msg.date);
+                    this.statsPanel.webview.html = this._getStatsHtml(stats);
+                }
             }
         });
     }
@@ -63,7 +71,7 @@ class WebviewManager {
         );
 
         // Show loading state first
-        this.finishPanel.webview.html = `<!DOCTYPE html><html><body style="font-family:sans-serif; padding:20px;"><h1>Generating Report...</h1><p>Analyzing file changes...</p></body></html>`;
+        this.finishPanel.webview.html = `<!DOCTYPE html><html><body style="font-family:sans-serif; padding:20px;"><h1>${this.loc.t('generatingReport')}</h1><p>${this.loc.t('analyzing')}</p></body></html>`;
 
         const html = await this._getFinishTaskHtmlResolver();
         if (this.finishPanel) {
@@ -76,8 +84,8 @@ class WebviewManager {
 
         this.finishPanel.webview.onDidReceiveMessage(msg => {
             if (msg.command === 'submit_finish') {
-                const entry = this.store.finishTask(msg.title, msg.description);
-                vscode.window.showInformationMessage(`Task finished: ${entry.title} (${this._formatTime(entry.activeSeconds)})`);
+                const entry = this.store.finishTask(msg.title, msg.description, msg.project);
+                vscode.window.showInformationMessage(`${this.loc.t('taskFinished')}: ${entry.title} (${this._formatTime(entry.activeSeconds)})`);
                 this.finishPanel.dispose();
                 this.showReport(entry);
                 // Also update stats if open
@@ -94,11 +102,18 @@ class WebviewManager {
         // Let's create a report panel.
         const panel = vscode.window.createWebviewPanel(
             'ecm_timetracker.report',
-            'ECM Task Report',
+            this.loc.t('reportTitle'),
             vscode.ViewColumn.Active,
-            {}
+            { enableScripts: true }
         );
         panel.webview.html = this._getReportHtml(entry);
+
+        panel.webview.onDidReceiveMessage(msg => {
+            if (msg.command === 'view_stats') {
+                panel.dispose();
+                this.showStats();
+            }
+        });
     }
 
     _formatTime(sec) {
@@ -256,21 +271,26 @@ class WebviewManager {
             }).join('');
         };
 
+        let globalTaskIndex = 0; // Use global counter for SAFE DOM IDs
+
         const generateProjectDetails = (projectTasks) => {
             return Object.entries(projectTasks).map(([projName, data]) => {
-                const tasksHtml = data.tasks.map((t, idx) => {
+                const tasksHtml = data.tasks.map((t) => {
+                    const uiId = `task-${globalTaskIndex++}`; // Safe simple ID
+                    const startTimeStr = t.startTime ? t.startTime.toString() : '';
+
                     return `
                     <div class="task-item">
-                        <div class="task-header" onclick="toggleTask('t-${projName}-${idx}')">
+                        <div class="task-header" onclick="toggleTask('${uiId}')">
                             <div style="flex-grow:1; display:flex; align-items:center;">
-                                <span class="arrow" id="arrow-t-${projName}-${idx}" style="margin-right:5px;">▶</span>
-                                <span>${new Date(t.time).toLocaleTimeString()} - <strong>${t.title || 'Untitled'}</strong> (${this._formatTime(t.duration)})</span>
+                                <span class="arrow" id="arrow-${uiId}" style="margin-right:5px;">▶</span>
+                                <span>${new Date(t.time).toLocaleTimeString()} - <strong>${t.title || this.loc.t('untitled')}</strong> (${this._formatTime(t.duration)})</span>
                             </div>
-                            <button class="delete-btn" onclick="deleteTask(event, '${t.startTime}')" title="Delete Task">🗑️</button>
+                            <button class="delete-btn" onclick="deleteTask(event, '${startTimeStr}')" title="${this.loc.t('deleteTaskTooltip')}">🗑️</button>
                         </div>
-                        <div id="t-${projName}-${idx}" class="task-details" style="display:none;">
-                            <pre>${t.description || 'No description'}</pre>
-                            ${t.files && t.files.length ? `<div class="sub-info">Files: ${t.files.length}</div>` : ''}
+                        <div id="${uiId}" class="task-details" style="display:none;">
+                            <pre>${t.description || this.loc.t('noDescription')}</pre>
+                            ${t.files && t.files.length ? `<div class="sub-info">${this.loc.t('files')}: ${t.files.length}</div>` : ''}
                         </div>
                     </div>`;
                 }).join('');
@@ -299,43 +319,50 @@ class WebviewManager {
                 .delete-btn { background: transparent; border: none; cursor: pointer; opacity: 0.5; padding: 2px 5px; font-size: 1.2em; }
                 .delete-btn:hover { opacity: 1; transform: scale(1.1); }
                 .arrow { display: inline-block; font-size: 0.8em; transition: transform 0.2s; }
+                .history-scroll { max-height: 500px; overflow-y: auto; padding-right: 10px; }
+                .history-scroll::-webkit-scrollbar { width: 8px; }
+                .history-scroll::-webkit-scrollbar-track { background: transparent; }
+                .history-scroll::-webkit-scrollbar-thumb { background: var(--vscode-scrollbarSlider-background); border-radius: 4px; }
+                .history-scroll::-webkit-scrollbar-thumb:hover { background: var(--vscode-scrollbarSlider-hoverBackground); }
             </style>
         </head>
         <body>
             <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h1>ECM Statistics</h1>
+                <h1>${this.loc.t('statsTitle')}</h1>
                 <select id="dateSelect" onchange="filterDate()" style="padding:5px; background: var(--vscode-dropdown-background); color: var(--vscode-dropdown-foreground); border: 1px solid var(--vscode-dropdown-border);">
-                    <option value="">All Time</option>
+                    <option value="">${this.loc.t('allTime')}</option>
                     ${dateOptions}
                 </select>
             </div>
 
             <div class="grid">
                 <div class="card">
-                    <h3>Total Active Time (${stats.selectedDate})</h3>
+                    <h3>${this.loc.t('totalActiveTime')} (${stats.selectedDate})</h3>
                     <div class="stat-value">${this._formatTime(stats.totalSeconds)}</div>
                 </div>
             </div>
 
             <div class="grid">
                 <div class="card chart-container">
-                    <h3>Active Languages</h3>
+                    <h3>${this.loc.t('activeLanguages')}</h3>
                     ${this._generatePieChart(stats.byLanguage)}
                 </div>
                 <div class="card chart-container">
-                    <h3>Active Projects</h3>
+                    <h3>${this.loc.t('activeProjects')}</h3>
                     ${this._generatePieChart(stats.byProject)}
                 </div>
             </div>
             
             <div class="card">
-                 <h2>History & Tasks</h2>
-                 <div class="stat-value" style="font-size:1em; margin-bottom:10px;">Total: ${this._formatTime(stats.totalSeconds)}</div>
-                 ${generateProjectDetails(stats.projectTasks)}
+                 <h2>${this.loc.t('historyTasks')}</h2>
+                 <div class="stat-value" style="font-size:1em; margin-bottom:10px;">${this.loc.t('total')}: ${this._formatTime(stats.totalSeconds)}</div>
+                 <div class="history-scroll">
+                    ${generateProjectDetails(stats.projectTasks)}
+                 </div>
             </div>
 
             <div class="card">
-                <button onclick="requestFinish()">Finish Current Task</button>
+                <button onclick="requestFinish()">${this.loc.t('finishCurrentTask')}</button>
             </div>
 
             <script>
@@ -382,40 +409,44 @@ class WebviewManager {
         // Manual AI logs
         const aiLogs = current.aiLogs || [];
 
-        let summary = `Project: ${current.project}\n`;
+        // Project Input
+        let formHtml = `<label style="display:block; margin-top:10px; font-size:0.9em; opacity:0.8;">${this.loc.t('projectLabel')}:</label>
+        <input type="text" id="projectName" value="${current.project || ''}" style="width:100%; padding:8px; margin-bottom:10px; background:var(--vscode-input-background); color:var(--vscode-input-foreground); border:1px solid var(--vscode-input-border);">`;
+
+        let summary = ``;
         if (current.activeSeconds > 0) {
-            summary += `Duration: ${this._formatTime(current.activeSeconds)}\n`;
+            summary += `${this.loc.t('duration')}: ${this._formatTime(current.activeSeconds)}\n`;
         }
 
-        // Helper to get basename
-        const getBase = (p) => {
-            try { return p.replace(/\\/g, '/').split('/').pop(); } catch (e) { return p; }
+        // Helper to get relative path
+        const getRel = (p) => {
+            try { return vscode.workspace.asRelativePath(p); } catch (e) { return p; }
         };
 
         if (modifiedFiles.size > 0) {
-            summary += `\nModified Files:\n`;
-            modifiedFiles.forEach(f => summary += `- ${getBase(f)}\n`);
+            summary += `\n${this.loc.t('modifiedFiles')}:\n`;
+            modifiedFiles.forEach(f => summary += `- ${getRel(f)}\n`);
 
             // Attempt to get diffs using FULL PATHS
             try {
                 const diffs = await this._getGitDiffs(Array.from(modifiedFiles));
                 if (diffs) {
-                    summary += `\nCode Changes Summary:\n${diffs}`;
+                    summary += `\n${this.loc.t('codeChanges')}:\n${diffs}`;
                 }
             } catch (e) { }
         }
 
         if (viewedFiles.size > 0) {
-            summary += `\nViewed Files:\n`;
-            viewedFiles.forEach(f => summary += `- ${getBase(f)}\n`);
+            summary += `\n${this.loc.t('viewedFiles')}:\n`;
+            viewedFiles.forEach(f => summary += `- ${getRel(f)}\n`);
         }
 
         if (aiLogs.length > 0) {
-            summary += `\nAI Interactions:\n`;
+            summary += `\n${this.loc.t('aiInteractions')}:\n`;
             aiLogs.forEach(l => summary += `- ${l.text}\n`);
         }
 
-        summary += `\nFinal Description:\n- `;
+        summary += `\n${this.loc.t('finalDescription')}:\n- `;
 
         return `<!DOCTYPE html>
         <html>
@@ -424,21 +455,28 @@ class WebviewManager {
         </head>
         <body>
             <div class="card">
-                <h1>Finish Task</h1>
-                <input type="text" id="taskTitle" placeholder="Task Title (e.g. Refactor Login)" style="width:100%; padding:8px; margin-bottom:10px; background:var(--vscode-input-background); color:var(--vscode-input-foreground); border:1px solid var(--vscode-input-border);">
-                <p>Review the generated summary (Diffs included if available):</p>
+                <h1>${this.loc.t('finishTitle')}</h1>
+                
+                ${formHtml}
+
+                <label style="display:block; margin-top:10px; font-size:0.9em; opacity:0.8;">${this.loc.t('taskLabel')}:</label>
+                <input type="text" id="taskTitle" placeholder="${this.loc.t('taskTitlePlaceholder')}" style="width:100%; padding:8px; margin-bottom:10px; background:var(--vscode-input-background); color:var(--vscode-input-foreground); border:1px solid var(--vscode-input-border);">
+                
+                <p>${this.loc.t('reviewSummary')}</p>
                 <textarea id="desc" rows="20">${summary}</textarea>
-                <button onclick="submit()">Generate Report & Finish</button>
+                <button onclick="submit()">${this.loc.t('generateButton')}</button>
             </div>
             <script>
                 const vscode = acquireVsCodeApi();
                 function submit() {
                     const titleInput = document.getElementById('taskTitle');
                     const descInput = document.getElementById('desc');
+                    const projInput = document.getElementById('projectName');
                     vscode.postMessage({ 
                         command: 'submit_finish', 
                         title: titleInput.value, 
-                        description: descInput.value 
+                        description: descInput.value,
+                        project: projInput.value
                     });
                 }
             </script>
@@ -447,6 +485,43 @@ class WebviewManager {
     }
 
     _getReportHtml(entry) {
+        // Calculate modified files for the report view as well
+        const logs = entry.autoLogs || [];
+        const modifiedFiles = new Set();
+        logs.forEach(l => {
+            if (l.action === 'Saved') modifiedFiles.add(l.detail);
+        });
+
+        // Helper to get relative path or shortened external path
+        const getRel = (p) => {
+            try {
+                const rel = vscode.workspace.asRelativePath(p);
+                // If asRelativePath returns the same full path (meaning it's external), shorten it manually
+                if (rel === p) {
+                    // Normalize separators
+                    const parts = p.replace(/\\/g, '/').split('/');
+                    // Return last 3 segments e.g. .../folder/sub/file.ext
+                    if (parts.length > 3) {
+                        return '.../' + parts.slice(-3).join('/');
+                    }
+                    return p;
+                }
+                return rel;
+            } catch (e) { return p; }
+        };
+
+        let filesHtml = this.loc.t('noFileTracked');
+        if (modifiedFiles.size > 0) {
+            filesHtml = '<ul>';
+            modifiedFiles.forEach(f => {
+                filesHtml += `<li>${getRel(f)}</li>`;
+            });
+            filesHtml += '</ul>';
+        } else if (entry.file) {
+            // Fallback to last touched if no saves recorded (e.g. read only)
+            filesHtml = getRel(entry.file);
+        }
+
         return `<!DOCTYPE html>
         <html>
         <head>
@@ -454,18 +529,29 @@ class WebviewManager {
         </head>
         <body>
             <div class="card">
-                <h1>Task Activity Report</h1>
-                <h3>Summary</h3>
-                <p><strong>Date:</strong> ${new Date(entry.end).toLocaleString()}</p>
-                <p><strong>Duration:</strong> ${this._formatTime(entry.activeSeconds)}</p>
-                <p><strong>Project:</strong> ${entry.project || 'N/A'}</p>
+                <h1>${this.loc.t('reportTitle')}</h1>
+                <h3>${this.loc.t('summarySection')}</h3>
+                <p><strong>${this.loc.t('taskLabel')}:</strong> ${entry.title || this.loc.t('untitled')}</p>
+                <p><strong>${this.loc.t('projectLabel')}:</strong> ${entry.project || 'N/A'}</p>
+                <p><strong>${this.loc.t('dateLabel')}:</strong> ${new Date(entry.end).toLocaleString()}</p>
+                <p><strong>${this.loc.t('durationLabel')}:</strong> ${this._formatTime(entry.activeSeconds)}</p>
+
+                <h3>${this.loc.t('descriptionSection')}</h3>
+                <p style="white-space: pre-wrap;">${entry.description || this.loc.t('noDescProvided')}</p>
                 
-                <h3>Description</h3>
-                <p style="white-space: pre-wrap;">${entry.description || 'No description provided.'}</p>
-                
-                <h3>Files Touched</h3>
-                <p>${entry.file ? entry.file : 'No specific file tracked as primary.'}</p>
+                <h3>${this.loc.t('filesTouchedSection')} (Modified)</h3>
+                ${filesHtml}
+
+                <div style="margin-top: 20px;">
+                    <button onclick="viewStats()">${this.loc.t('viewStats')}</button>
+                </div>
             </div>
+            <script>
+                const vscode = acquireVsCodeApi();
+                function viewStats() {
+                    vscode.postMessage({ command: 'view_stats' });
+                }
+            </script>
         </body>
         </html>`;
     }

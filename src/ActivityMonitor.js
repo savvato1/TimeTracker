@@ -8,6 +8,7 @@ class ActivityMonitor {
         this.checkIntervalMs = 1000;
         this.pendingSeconds = 0; // Track how much we speculatively added
 
+        this.lastUserActionTime = Date.now(); // Initialize immediately
         this.disposables = [];
         this._setupListeners();
         this._startTicker();
@@ -16,101 +17,78 @@ class ActivityMonitor {
         this._updateUI();
     }
 
+    // startTracking removed as it was redundant/unused
+
     _setupListeners() {
-        // Generic activity handler for timer purposes
-        const onEvent = (e) => {
-            let doc = null;
-            if (e && e.document) doc = e.document;
-            else if (vscode.window.activeTextEditor) doc = vscode.window.activeTextEditor.document;
-            this._onUserActivity(doc);
-        };
-
-        // Specific actions for logging context (saves and focus shifts)
-        this.disposables.push(vscode.workspace.onDidSaveTextDocument(doc => {
-            // Log full path for diffing, UI will handle basename display
-            this.store.logAutoAction('Saved', doc.uri.fsPath);
-            this._onUserActivity(doc);
-        }));
-
-        this.disposables.push(vscode.window.onDidChangeActiveTextEditor(e => {
-            if (e && e.document) {
-                this.store.logAutoAction('Focused', e.document.uri.fsPath);
-                onEvent(e);
-            }
-        }));
-
-        this.disposables.push(vscode.workspace.onDidChangeTextDocument(e => onEvent(e)));
-        this.disposables.push(vscode.window.onDidChangeTextEditorSelection(e => onEvent(e)));
-
-        // Window focus tracking
+        // User Actions (Definitely User)
+        this.disposables.push(vscode.window.onDidChangeTextEditorSelection(e => this._onUserAction(e)));
+        this.disposables.push(vscode.window.onDidChangeActiveTextEditor(e => this._onUserAction(e)));
         this.disposables.push(vscode.window.onDidChangeWindowState(e => {
-            if (e.focused) {
-                this._onUserActivity();
+            if (e.focused) this._onUserAction();
+        }));
+        this.disposables.push(vscode.workspace.onDidSaveTextDocument(doc => {
+            // Filter out system files and settings
+            const fsPath = doc.uri.fsPath;
+            if (fsPath.endsWith('settings.json') || fsPath.endsWith('keybindings.json')) return;
+            if (fsPath.includes('extension-output')) return;
+
+            this.store.logAutoAction('Saved', fsPath);
+        }));
+
+        this.disposables.push(vscode.workspace.onDidChangeTextDocument(e => {
+            if (e.contentChanges.length > 0) {
+                // Content change
             }
         }));
     }
 
-    _getBasename(p) {
-        try { const parts = p.replace(/\\/g, '/').split('/'); return parts[parts.length - 1]; } catch (e) { return p; }
-    }
-
-    _onUserActivity(doc) {
-        const current = this.store.getCurrentSession();
-        // If we were idle, we are back
-        if (current.idle) {
-            this.store.setIdle(false);
+    _onUserAction(e) {
+        // STRICT FILTERING
+        // If it's a selection change event (has 'kind' property), we ONLY accept Keyboard or Mouse.
+        if (e && typeof e.kind === 'number') {
+            if (e.kind !== vscode.TextEditorSelectionChangeKind.Keyboard &&
+                e.kind !== vscode.TextEditorSelectionChangeKind.Mouse) {
+                return; // Ignore Command or System updates
+            }
         }
 
-        // Activity confirmed, so the pending time is now valid/committed
-        // Reset pending counter for the new idle-window
-        this.pendingSeconds = 0;
-
-        // Update file info if available
-        let filePath = current.file;
-        let language = current.language;
+        this.lastUserActionTime = Date.now();
+        // Register activity
+        let doc = null;
+        if (e) {
+            if (e.document) doc = e.document; // On change active editor, or passed manually
+            else if (e.textEditor) doc = e.textEditor.document; // On selection
+        }
 
         if (doc) {
-            filePath = doc.uri.fsPath;
-            language = doc.languageId;
+            this.store.registerUserActivity(doc.uri.fsPath, doc.languageId);
         }
+    }
 
-        this.store.registerUserActivity(filePath, language);
-        this._updateUI();
+    _onContentChange() {
+        // No-op or remove completely
     }
 
     _startTicker() {
         this.interval = setInterval(() => {
-            const current = this.store.getCurrentSession();
-
-            // If already idle, nothing to add
-            if (current.idle) {
-                this._updateUI();
+            if (this.store.isPaused()) {
+                this.statusBar.update(this.store.getCurrentSession().activeSeconds, false, true);
                 return;
             }
 
             const now = Date.now();
-            const lastAct = current.lastActivity;
-            const delta = Math.floor((now - lastAct) / 1000);
+            const timeSinceUser = (now - this.lastUserActionTime) / 1000;
 
-            if (delta >= this.idleThreshold) {
-                // User has been inactive for too long.
-                // Mark as idle.
-                this.store.setIdle(true);
-
-                // Rollback strictly what we added during this specific idle wait period
-                // This prevents "negative time" bugs if the interval lagged
-                if (this.pendingSeconds > 0) {
-                    this.store.addActiveTime(-this.pendingSeconds);
-                    this.pendingSeconds = 0;
-                }
+            // Simple logic: If user interaction was recent, they are active.
+            // "AI Time" vs "User Time" distinction is removed per user request.
+            if (timeSinceUser < this.idleThreshold) {
+                this.store.setIdle(false);
+                this.store.addActiveTime(1); // Just add total active time
             } else {
-                // User is considered active within the threshold window.
-                // Speculatively add time.
-                this.store.addActiveTime(1);
-                this.pendingSeconds += 1;
+                this.store.setIdle(true);
             }
             this._updateUI();
-        }, this.checkIntervalMs);
+        }, 1000);
     }
 
     _updateUI() {
