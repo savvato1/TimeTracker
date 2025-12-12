@@ -1,15 +1,50 @@
 {
   "name": "ecm_timetracker",
   "displayName": "ECM TimeTracker",
-  "publisher": "yourname",
+  "publisher": "Elcommerce",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/savvato1/TimeTracker"
+  },
   "version": "0.0.1",
-  "engines": { "vscode": "^1.60.0" },
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "icon": "icon.png",
   "main": "extension.js",
-  "activationEvents": ["*"],
+  "activationEvents": [
+    "*"
+  ],
   "contributes": {
     "commands": [
-      { "command": "ecm_timetracker.showStats", "title": "ECM TimeTracker: Show Statistics" },
-      { "command": "ecm_timetracker.finishTask", "title": "ECM TimeTracker: Finish Task" }
+      {
+        "command": "ecm_timetracker.showStats",
+        "title": "ECM TimeTracker: Show Statistics"
+      },
+      {
+        "command": "ecm_timetracker.finishTask",
+        "title": "ECM TimeTracker: Finish Task"
+      },
+      {
+        "command": "ecm_timetracker.togglePause",
+        "title": "ECM TimeTracker: Toggle Pause"
+      },
+      {
+        "command": "ecm_timetracker.stopAndFinish",
+        "title": "ECM TimeTracker: Stop & Finish"
+      },
+      {
+        "command": "ecm_timetracker.resetTimer",
+        "title": "ECM TimeTracker: Reset Timer"
+      },
+      {
+        "command": "ecm_timetracker.logAiTask",
+        "title": "ECM TimeTracker: Log AI Task"
+      },
+      {
+        "command": "ecm_timetracker.setLanguage",
+        "title": "ECM TimeTracker: Set Language"
+      }
     ]
   }
 }
