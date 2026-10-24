@@ -1,12 +1,14 @@
 {
-  "name": "ecm_timetracker",
+  "name": "ecm-timetracker",
   "displayName": "ECM TimeTracker",
   "publisher": "Elcommerce",
   "repository": {
     "type": "git",
     "url": "https://github.com/savvato1/TimeTracker"
   },
-  "version": "0.0.1",
+  "version": "0.3.0",
+  "description": "Time tracking extension for Visual Studio Code with TaskHub API integration",
+  "license": "MIT",
   "engines": {
     "vscode": "^1.60.0"
   },
@@ -44,7 +46,105 @@
       {
         "command": "ecm_timetracker.setLanguage",
         "title": "ECM TimeTracker: Set Language"
+      },
+      {
+        "command": "ecm_timetracker.openSettings",
+        "title": "ECM TimeTracker: Open Settings (GUI)"
+      },
+      {
+        "command": "ecm_timetracker.viewLogs",
+        "title": "ECM TimeTracker: View Logs"
+      },
+      {
+        "command": "ecm_timetracker.clearLogs",
+        "title": "ECM TimeTracker: Clear Logs"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "ECM TimeTracker",
+      "properties": {
+        "ecmTimeTracker.apiEndpoint": {
+          "type": "string",
+          "default": "https://taskhub.loc",
+          "description": "TaskHub API endpoint URL (without /api/v1)",
+          "order": 1
+        },
+        "ecmTimeTracker.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "API Key for authentication",
+          "order": 2
+        },
+        "ecmTimeTracker.authMethod": {
+          "type": "string",
+          "default": "apiKey",
+          "enum": [
+            "apiKey",
+            "basic"
+          ],
+          "enumDescriptions": [
+            "Use API Key in X-API-Key header (recommended)",
+            "Use Basic Authentication (login:password)"
+          ],
+          "description": "Authentication method for API requests",
+          "order": 3
+        },
+        "ecmTimeTracker.basicAuthUsername": {
+          "type": "string",
+          "default": "",
+          "description": "Username for Basic Authentication (only if authMethod is 'basic')",
+          "order": 4
+        },
+        "ecmTimeTracker.basicAuthPassword": {
+          "type": "string",
+          "default": "",
+          "description": "Password for Basic Authentication (only if authMethod is 'basic')",
+          "order": 5
+        },
+        "ecmTimeTracker.enableLogging": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable logging to file for debugging purposes",
+          "order": 6
+        },
+        "ecmTimeTracker.projectMappings": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "properties": {
+              "localPath": {
+                "type": "string",
+                "description": "Local absolute path to project folder"
+              },
+              "projectId": {
+                "type": "number",
+                "description": "TaskHub Project ID"
+              },
+              "projectName": {
+                "type": "string",
+                "description": "TaskHub Project Name"
+              },
+              "status": {
+                "type": "string",
+                "description": "Default status ID for this project (as string)"
+              },
+              "workspaceId": {
+                "type": "number",
+                "description": "TaskHub Workspace ID"
+              }
+            }
+          },
+          "description": "Mapping of local paths to TaskHub projects. Use command 'ECM TimeTracker: Open Settings (GUI)' for a visual editor.",
+          "order": 7
+        },
+        "ecmTimeTracker.defaultStatus": {
+          "type": "string",
+          "default": "checking",
+          "description": "Default status for finished tasks (e.g. 'completed' or 'checking')",
+          "order": 8
+        }
+      }
+    }
   }
 }
