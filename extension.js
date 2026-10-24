@@ -6,27 +6,30 @@ const StatusBar = require('./src/StatusBar');
 const ActivityMonitor = require('./src/ActivityMonitor');
 const WebviewManager = require('./src/WebviewManager');
 const LocalizationManager = require('./src/LocalizationManager');
+const Logger = require('./src/Logger');
 
 let monitor;
 let statusBar;
 let webviewManager;
 let locManager;
+let logger;
 
 function activate(context) {
   console.log('ECM TimeTracker is now active!');
 
   // Initialize Components
+  logger = new Logger(context);
   const store = new TimeStore(context);
   locManager = new LocalizationManager(context);
-  statusBar = new StatusBar(locManager); // Pass locManager
-  webviewManager = new WebviewManager(context, store, locManager); // Pass locManager
+  statusBar = new StatusBar(locManager);
+  webviewManager = new WebviewManager(context, store, locManager, logger);
 
   // Config
-  const config = vscode.workspace.getConfiguration('ecm_timetracker');
+  const config = vscode.workspace.getConfiguration('ecmTimeTracker');
   const idleThreshold = config.get('idleThreshold', 60);
 
   // Monitor starts tracking immediately
-  monitor = new ActivityMonitor(store, statusBar, { idleThreshold });
+  monitor = new ActivityMonitor(store, statusBar, { idleThreshold }, logger);
 
   // Commands
   context.subscriptions.push(vscode.commands.registerCommand('ecm_timetracker.showStats', () => {
@@ -82,6 +85,22 @@ function activate(context) {
       if (reload === 'Reload') {
         vscode.commands.executeCommand('workbench.action.reloadWindow');
       }
+    }
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('ecm_timetracker.openSettings', () => {
+    webviewManager.showSettings();
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('ecm_timetracker.viewLogs', () => {
+    logger.openLogFile();
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('ecm_timetracker.clearLogs', async () => {
+    const choice = await vscode.window.showWarningMessage('Clear all logs?', 'Yes', 'No');
+    if (choice === 'Yes') {
+      logger.clear();
+      vscode.window.showInformationMessage('Logs cleared successfully');
     }
   }));
 

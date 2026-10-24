@@ -1,0 +1,3 @@
+# сборки расширения (vsce package) — не в git
+*.vsix
+node_modules/

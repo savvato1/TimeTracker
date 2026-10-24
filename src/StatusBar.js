@@ -35,6 +35,13 @@ class StatusBar {
         this.statsItem.tooltip = this.loc.t('statsTooltip');
         this.statsItem.show();
 
+        // Settings GUI button
+        this.settingsItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 96);
+        this.settingsItem.command = 'ecm_timetracker.openSettings';
+        this.settingsItem.text = '$(gear)';
+        this.settingsItem.tooltip = this.loc.t('settingsTitle') + ' (GUI)';
+        this.settingsItem.show();
+
         this.paused = false;
     }
 
@@ -79,6 +86,7 @@ class StatusBar {
         this.pauseItem.dispose();
         this.restartItem.dispose();
         this.statsItem.dispose();
+        this.settingsItem.dispose();
     }
 }
 

@@ -80,11 +80,43 @@ class LocalizationManager {
                 taskFinished: "Task finished",
                 viewStats: "View Statistics",
 
+                // API Integration
+                enterOrSelectProject: "Enter or select project",
+                selectFromAPI: "Select from API",
+                selectTaskFromProject: "Select task from project",
+                loading: "Loading...",
+
+                // Settings
+                settingsTitle: "API Settings",
+                settingsDescription: "Configure TaskHub API connection settings",
+                apiEndpointLabel: "API Endpoint",
+                apiEndpointInfo: "Base URL without /api/v1 (e.g., https://taskhub.loc)",
+                authMethodLabel: "Authentication Method",
+                authMethodApiKey: "API Key (Recommended)",
+                authMethodBasic: "Basic Authentication",
+                apiKeyLabel: "API Key",
+                apiKeyInfo: "Your API key for X-API-Key header authentication",
+                usernameLabel: "Username",
+                passwordLabel: "Password",
+                saveButton: "Save Settings",
+                testConnectionButton: "Test Connection",
+                settingsSaved: "Settings saved successfully!",
+                settingsSaveError: "Failed to save settings",
+                connectionSuccess: "✓ Connection successful!",
+                connectionFailed: "✗ Connection failed",
+                testing: "Testing connection...",
+
                 // Analytics
                 userTime: "User Time",
                 aiTime: "AI Time",
                 totalTime: "Total Time",
-                timeBreakdown: "Time Breakdown"
+                timeBreakdown: "Time Breakdown",
+                statusLabel: "Task Status",
+                projectMappingsLabel: "Project Path Mappings",
+                addMappingButton: "Add Mapping",
+                selectStatus: "Select Status",
+                taskReported: "Task reported to TaskHub",
+                apiReportError: "Failed to report to TaskHub"
             },
             ru: {
                 paused: "ECM TimeTracker: Пауза",
@@ -144,10 +176,40 @@ class LocalizationManager {
                 taskFinished: "Задача завершена",
                 viewStats: "Посмотреть статистику",
 
+                enterOrSelectProject: "Введите или выберите проект",
+                selectFromAPI: "Выбрать из API",
+                selectTaskFromProject: "Выберите задачу из проекта",
+                loading: "Загрузка...",
+
+                settingsTitle: "Настройки API",
+                settingsDescription: "Настройка подключения к TaskHub API",
+                apiEndpointLabel: "API Endpoint",
+                apiEndpointInfo: "Базовый URL без /api/v1 (например, https://taskhub.loc)",
+                authMethodLabel: "Метод аутентификации",
+                authMethodApiKey: "API ключ (Рекомендуется)",
+                authMethodBasic: "Базовая аутентификация",
+                apiKeyLabel: "API ключ",
+                apiKeyInfo: "Ваш API ключ для аутентификации через заголовок X-API-Key",
+                usernameLabel: "Имя пользователя",
+                passwordLabel: "Пароль",
+                saveButton: "Сохранить настройки",
+                testConnectionButton: "Проверить подключение",
+                settingsSaved: "Настройки успешно сохранены!",
+                settingsSaveError: "Ошибка сохранения настроек",
+                connectionSuccess: "✓ Подключение успешно!",
+                connectionFailed: "✗ Подключение не удалось",
+                testing: "Проверка подключения...",
+
                 userTime: "Время пользователя",
                 aiTime: "Время AI",
                 totalTime: "Всего времени",
-                timeBreakdown: "Распределение времени"
+                timeBreakdown: "Распределение времени",
+                statusLabel: "Статус задачи",
+                projectMappingsLabel: "Маппинги путей к проектам",
+                addMappingButton: "Добавить маппинг",
+                selectStatus: "Выберите статус",
+                taskReported: "Задача отправлена в TaskHub",
+                apiReportError: "Ошибка отправки в TaskHub"
             },
             uk: {
                 paused: "ECM TimeTracker: Пауза",
@@ -207,10 +269,40 @@ class LocalizationManager {
                 taskFinished: "Задачу завершено",
                 viewStats: "Переглянути статистику",
 
+                enterOrSelectProject: "Введіть або виберіть проєкт",
+                selectFromAPI: "Вибрати з API",
+                selectTaskFromProject: "Виберіть задачу з проєкту",
+                loading: "Завантаження...",
+
+                settingsTitle: "Налаштування API",
+                settingsDescription: "Налаштування підключення до TaskHub API",
+                apiEndpointLabel: "API Endpoint",
+                apiEndpointInfo: "Базова URL без /api/v1 (наприклад, https://taskhub.loc)",
+                authMethodLabel: "Метод автентифікації",
+                authMethodApiKey: "API ключ (Рекомендується)",
+                authMethodBasic: "Базова автентифікація",
+                apiKeyLabel: "API ключ",
+                apiKeyInfo: "Ваш API ключ для автентифікації через заголовок X-API-Key",
+                usernameLabel: "Ім'я користувача",
+                passwordLabel: "Пароль",
+                saveButton: "Зберегти налаштування",
+                testConnectionButton: "Перевірити з'єднання",
+                settingsSaved: "Налаштування успішно збережено!",
+                settingsSaveError: "Помилка збереження налаштувань",
+                connectionSuccess: "✓ З'єднання успішне!",
+                connectionFailed: "✗ З'єднання не вдалося",
+                testing: "Перевірка з'єднання...",
+
                 userTime: "Час користувача",
                 aiTime: "Час AI",
                 totalTime: "Всього часу",
-                timeBreakdown: "Розподіл часу"
+                timeBreakdown: "Розподіл часу",
+                statusLabel: "Статус завдання",
+                projectMappingsLabel: "Мапінги шляхів до проєктів",
+                addMappingButton: "Додати мапінг",
+                selectStatus: "Оберіть статус",
+                taskReported: "Завдання відправлено в TaskHub",
+                apiReportError: "Помилка відправки в TaskHub"
             }
         };
     }
